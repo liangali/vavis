@@ -27,4 +27,12 @@ more examples in [cmd.md](https://github.com/mintaka33/libva-trace-visualizer/bl
 
 ### screenshot
 
-![pic](./pic.png "h264encode graph")
+libva-utils h264encode
+
+![h264encode](./pic.png "h264encode")
+
+ffmpeg vaapi avc->hevc transcode
+
+![ffmpeg xcode](./pic2.png "ffmpeg xcode")
+
+
