@@ -24,6 +24,6 @@ python3 vis.py "h264encode" 2
 python3 vis.py "ffmpeg -loglevel verbose -hwaccel vaapi -i test.264 -f null -"
 ```
 
-![h264encode](https://gitlab.devtools.intel.com/gpu-va-solution/vavis/-/blob/master/pic.png)
+![pic](./pic.png "h264encode graph")
 
 more examples in [cmd.md](https://github.com/mintaka33/libva-trace-visualizer/blob/master/cmd.md)
