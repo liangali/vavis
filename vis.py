@@ -5,6 +5,24 @@ import pathlib
 import time
 from datetime import datetime
 
+def run_cmd(cmd):
+    print('#'*32, cmd)
+    os.system(cmd)
+
+def get_uptime_epoch():
+    with open('/proc/uptime', 'r') as f:
+        uptime_seconds = float(f.readline().split()[0])
+    uptime_since_epoch = time.time() - uptime_seconds
+    return uptime_since_epoch
+
+def epoch_to_uptime(epoch_time):
+    time_since_up = float(epoch_time) - uptime
+    tmp_str = '%.6f' % time_since_up
+    time_since_up_str = tmp_str.replace('.', '')
+    return time_since_up_str
+
+uptime = get_uptime_epoch()
+
 class ContextInfo():
     def __init__(self, info_lines):
         self.info_lines = info_lines
@@ -476,6 +494,8 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 2 or len(sys.argv) == 3:
         app_cmd = sys.argv[1]
+        if '.sh' in app_cmd and './' not in app_cmd:
+            app_cmd = './' + app_cmd
         app_name = app_cmd.split()[0]
         if '/' in app_name:
             app_name = app_name.split('/')[-1]
@@ -506,16 +526,19 @@ if __name__ == "__main__":
     libva_trace_env = 'LIBVA_TRACE=' + fullpath + '/' + libva_trace_prefix
     print('****INFO: libva trace env variable ****', libva_trace_env)
 
-    app_cmd_with_strace = libva_trace_env + ' ' + strace_cmd + ' ' + app_cmd
-    print('****INFO: full cmd line ****', app_cmd_with_strace)
+    app_cmd_final = libva_trace_env + ' '
+    if trace_level == 3:
+        app_cmd_final += strace_cmd + ' '
+    app_cmd_final += app_cmd
+    print('****INFO: full cmd line ****', app_cmd_final)
 
-    os.system(app_cmd_with_strace)
-    os.system('ls -al ' + fullpath)
+    run_cmd(app_cmd_final)
+    run_cmd('ls -al ' + fullpath)
 
     json_file = vis_execute(fullpath, trace_level)
     if len(json_file) > 0:
         copy_cmd = 'cp ' + json_file + ' ./'
-        os.system(copy_cmd)
+        run_cmd(copy_cmd)
         print('****INFO: json file', json_file.split(fullpath)[1].strip('/'), 'generated****')
     else:
         print('****ERROR: failed to generate json file****')
