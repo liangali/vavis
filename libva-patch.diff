@@ -18,10 +18,28 @@ index 633377b..2fb8a84 100644
  
    return va_status;
 diff --git a/va/va_trace.c b/va/va_trace.c
-index d34fc40..5ed865b 100755
+index d34fc40..ca4315a 100755
 --- a/va/va_trace.c
 +++ b/va/va_trace.c
-@@ -5294,7 +5294,7 @@ void va_TracePutSurface (
+@@ -4916,6 +4916,8 @@ void va_TraceRenderPicture(
+     DPY2TRACECTX(dpy, context, VA_INVALID_ID);
+ 
+     TRACE_FUNCNAME(idx);
++
++    return;
+     
+     va_TraceMsg(trace_ctx, "\tcontext = 0x%08x\n", context);
+     va_TraceMsg(trace_ctx, "\tnum_buffers = %d\n", num_buffers);
+@@ -5052,6 +5054,8 @@ void va_TraceEndPicture(
+     va_TraceMsg(trace_ctx, "\tcontext = 0x%08x\n", context);
+     va_TraceMsg(trace_ctx, "\trender_targets = 0x%08x\n", trace_ctx->trace_rendertarget);
+ 
++    return;
++
+     /* avoid to create so many empty files */
+     encode = (trace_ctx->trace_entrypoint == VAEntrypointEncSlice);
+     decode = (trace_ctx->trace_entrypoint == VAEntrypointVLD);
+@@ -5294,7 +5298,7 @@ void va_TracePutSurface (
  void va_TraceStatus(VADisplay dpy, const char * funcName, VAStatus status)
  {
      if(status == VA_STATUS_SUCCESS)
