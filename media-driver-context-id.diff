@@ -1,0 +1,121 @@
+diff --git a/media_driver/cmake/linux/media_compile_flags_linux.cmake b/media_driver/cmake/linux/media_compile_flags_linux.cmake
+index 6d6ef03..5347f4f 100755
+--- a/media_driver/cmake/linux/media_compile_flags_linux.cmake
++++ b/media_driver/cmake/linux/media_compile_flags_linux.cmake
+@@ -135,7 +135,7 @@ set(MEDIA_COMPILER_FLAGS_RELEASE "")
+ if(${UFO_VARIANT} STREQUAL "default")
+     set(MEDIA_COMPILER_FLAGS_RELEASE
+         ${MEDIA_COMPILER_FLAGS_RELEASE}
+-        -O2
++        -O0
+         -D_FORTIFY_SOURCE=2
+         -fno-omit-frame-pointer
+     )
+@@ -160,7 +160,7 @@ if(NOT ${PLATFORM} STREQUAL "android")
+ endif()
+ 
+ set(MEDIA_COMPILER_FLAGS_RELEASEINTERNAL
+-    -O2
++    -O0
+     -fno-omit-frame-pointer
+ )
+ 
+diff --git a/media_driver/linux/common/ddi/media_libva.cpp b/media_driver/linux/common/ddi/media_libva.cpp
+index 5e096ad..05e89f4 100755
+--- a/media_driver/linux/common/ddi/media_libva.cpp
++++ b/media_driver/linux/common/ddi/media_libva.cpp
+@@ -3934,8 +3934,12 @@ VAStatus DdiMedia_CreateImage(
+         return VA_STATUS_ERROR_ALLOCATION_FAILED;
+     }
+ 
+-    uint32_t    gmmPitch  = (uint32_t)gmmResourceInfo->GetRenderPitch();
+-    uint32_t    gmmHeight = (uint32_t)gmmResourceInfo->GetBaseHeight();
++    uint32_t gmmPitch  = (uint32_t)gmmResourceInfo->GetRenderPitch();
++    uint32_t gmmHeight = (uint32_t)gmmResourceInfo->GetBaseHeight();
++    uint32_t UPlaneXOffset = (uint32_t)gmmResourceInfo->GetPlanarXOffset(GMM_PLANE_U);
++    uint32_t UPlaneYOffset = (uint32_t)gmmResourceInfo->GetPlanarYOffset(GMM_PLANE_U);
++    uint32_t VPlaneXOffset = (uint32_t)gmmResourceInfo->GetPlanarXOffset(GMM_PLANE_V);
++    uint32_t VPlaneYOffset = (uint32_t)gmmResourceInfo->GetPlanarYOffset(GMM_PLANE_V);
+ 
+     vaimg->format                = *format;
+     vaimg->format.byte_order     = VA_LSB_FIRST;
+@@ -3969,8 +3973,8 @@ VAStatus DdiMedia_CreateImage(
+             vaimg->pitches[1] = gmmPitch;
+             vaimg->pitches[2] = gmmPitch;
+             vaimg->offsets[0] = 0;
+-            vaimg->offsets[1] = gmmPitch * gmmHeight;
+-            vaimg->offsets[2] = gmmPitch * gmmHeight * 2;
++            vaimg->offsets[1] = gmmPitch * UPlaneYOffset + UPlaneXOffset;
++            vaimg->offsets[2] = gmmPitch * VPlaneYOffset + VPlaneXOffset;
+             break;
+         case VA_FOURCC_Y800:
+         case VA_FOURCC_UYVY:
+diff --git a/media_driver/linux/common/ddi/media_libva_common.h b/media_driver/linux/common/ddi/media_libva_common.h
+index 4143b1b..e08b07e 100644
+--- a/media_driver/linux/common/ddi/media_libva_common.h
++++ b/media_driver/linux/common/ddi/media_libva_common.h
+@@ -99,7 +99,7 @@ static int32_t atrace_switch            = 0;
+ #define DDI_MEDIA_VACONTEXTID_OFFSET_CM            0x80000000
+ #define DDI_MEDIA_MASK_VACONTEXT_TYPE              0xF0000000
+ 
+-#define DDI_MEDIA_MASK_VACONTEXTID                 0x0FFFFFFF
++#define DDI_MEDIA_MASK_VACONTEXTID                 0x0000FFFF
+ #define DDI_MEDIA_CONTEXT_TYPE_DECODER             1
+ #define DDI_MEDIA_CONTEXT_TYPE_ENCODER             2
+ #define DDI_MEDIA_CONTEXT_TYPE_VP                  3
+diff --git a/media_driver/linux/common/ddi/media_libva_util.cpp b/media_driver/linux/common/ddi/media_libva_util.cpp
+index 05a10d0..81df92b 100644
+--- a/media_driver/linux/common/ddi/media_libva_util.cpp
++++ b/media_driver/linux/common/ddi/media_libva_util.cpp
+@@ -1253,6 +1253,11 @@ PDDI_MEDIA_VACONTEXT_HEAP_ELEMENT DdiMediaUtil_AllocPVAContextFromHeap(PDDI_MEDI
+     PDDI_MEDIA_VACONTEXT_HEAP_ELEMENT   vacontextHeapElmt = nullptr;
+     DDI_CHK_NULL(vaContextHeap, "nullptr vaContextHeap", nullptr);
+ 
++    struct timeval tv = {};
++    gettimeofday(&tv, NULL);
++    uint16_t tag = (uint16_t)(tv.tv_usec & 0xfff);
++    uint32_t mask  = tag << 16;
++
+     if (nullptr == vaContextHeap->pFirstFreeHeapElement)
+     {
+         void *newHeapBase = MOS_ReallocMemory(vaContextHeap->pHeapBase, (vaContextHeap->uiAllocatedHeapElements + DDI_MEDIA_HEAP_INCREMENTAL_SIZE) * sizeof(DDI_MEDIA_VACONTEXT_HEAP_ELEMENT));
+@@ -1264,12 +1269,13 @@ PDDI_MEDIA_VACONTEXT_HEAP_ELEMENT DdiMediaUtil_AllocPVAContextFromHeap(PDDI_MEDI
+         }
+         vaContextHeap->pHeapBase                            = newHeapBase;
+         PDDI_MEDIA_VACONTEXT_HEAP_ELEMENT vacontextHeapBase = (PDDI_MEDIA_VACONTEXT_HEAP_ELEMENT)vaContextHeap->pHeapBase;
+-        vaContextHeap->pFirstFreeHeapElement        = (void*)(&(vacontextHeapBase[vaContextHeap->uiAllocatedHeapElements]));
++        vaContextHeap->pFirstFreeHeapElement                = (void*)(&(vacontextHeapBase[vaContextHeap->uiAllocatedHeapElements]));
+         for (int32_t i = 0; i < (DDI_MEDIA_HEAP_INCREMENTAL_SIZE); i++)
+         {
+             vacontextHeapElmt                       = &vacontextHeapBase[vaContextHeap->uiAllocatedHeapElements + i];
+             vacontextHeapElmt->pNextFree            = (i == (DDI_MEDIA_HEAP_INCREMENTAL_SIZE - 1))? nullptr : &vacontextHeapBase[vaContextHeap->uiAllocatedHeapElements + i + 1];
+             vacontextHeapElmt->uiVaContextID        = vaContextHeap->uiAllocatedHeapElements + i;
++            vacontextHeapElmt->uiVaContextID        = vacontextHeapElmt->uiVaContextID | mask;
+             vacontextHeapElmt->pVaContext           = nullptr;
+         }
+         vaContextHeap->uiAllocatedHeapElements     += DDI_MEDIA_HEAP_INCREMENTAL_SIZE;
+diff --git a/media_driver/linux/ult/ult_app/CMakeLists.txt b/media_driver/linux/ult/ult_app/CMakeLists.txt
+index 98c7ad9..0e538e2 100644
+--- a/media_driver/linux/ult/ult_app/CMakeLists.txt
++++ b/media_driver/linux/ult/ult_app/CMakeLists.txt
+@@ -68,13 +68,13 @@ if (DEFINED BYPASS_MEDIA_ULT AND "${BYPASS_MEDIA_ULT}" STREQUAL "yes")
+     message("-- media -- BYPASS_MEDIA_ULT = ${BYPASS_MEDIA_ULT}")
+ else ()
+     if (ENABLE_NONFREE_KERNELS)
+-        add_custom_target(RunULT ALL DEPENDS ${LIB_NAME} devult)
++#        add_custom_target(RunULT ALL DEPENDS ${LIB_NAME} devult)
+ 
+-        add_custom_command(
+-            TARGET RunULT
+-            POST_BUILD
+-            COMMAND LD_PRELOAD=../libdrm_mock/libdrm_mock.so ./devult ../../../${LIB_NAME}.so
+-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+-            COMMENT "Running devult...")
++#        add_custom_command(
++#            TARGET RunULT
++#            POST_BUILD
++#            COMMAND LD_PRELOAD=../libdrm_mock/libdrm_mock.so ./devult ../../../${LIB_NAME}.so
++#            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
++#            COMMENT "Running devult...")
+         endif ()
+ endif ()
