@@ -34,5 +34,3 @@ libva-utils h264encode
 ffmpeg vaapi avc->hevc transcode
 
 ![ffmpeg xcode](./pic2.png "ffmpeg xcode")
-
-
