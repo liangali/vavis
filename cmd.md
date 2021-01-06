@@ -94,3 +94,5 @@ python3 vis.py "gst-launch-1.0 filesrc location=/home/fresh/data/video/test.mp4 
 export LIBVA_TRACE=./tmp
 strace -ff -o tmp.strace -ttt -e trace=ioctl Test_APP_Command_Line
 ```
+
+
